@@ -13,6 +13,13 @@ def mse_loss(y_true, y_pred):
   # y_true and y_pred are numpy arrays of the same length.
   return ((y_true - y_pred) ** 2).mean()
 
+def accuracy(network, data, all_y_trues):
+  # A prediction counts as correct when it is on the right side of 0.5:
+  # >= 0.5 means class 1, < 0.5 means class 0.
+  y_preds = np.apply_along_axis(network.feedforward, 1, data)
+  predicted_classes = (y_preds >= 0.5).astype(int)
+  return (predicted_classes == all_y_trues).mean()
+
 class OurNeuralNetwork:
   '''
   A neural network with:
@@ -25,7 +32,12 @@ class OurNeuralNetwork:
   Real neural net code looks nothing like this. DO NOT use this code.
   Instead, read/run it to understand how this specific network works.
   '''
-  def __init__(self):
+  def __init__(self, seed=None):
+    # Optional seed: pass a number (e.g. 42) to get the same starting
+    # weights every run, so experiments can be reproduced and compared.
+    if seed is not None:
+      np.random.seed(seed)
+
     # Weights
     self.w1 = np.random.normal()
     self.w2 = np.random.normal()
@@ -46,14 +58,14 @@ class OurNeuralNetwork:
     o1 = sigmoid(self.w5 * h1 + self.w6 * h2 + self.b3)
     return o1
 
-  def train(self, data, all_y_trues):
+  def train(self, data, all_y_trues, learn_rate=0.1, epochs=1000):
     '''
     - data is a (n x 2) numpy array, n = # of samples in the dataset.
     - all_y_trues is a numpy array with n elements.
       Elements in all_y_trues correspond to those in data.
+    - learn_rate controls how big each weight update step is.
+    - epochs is the number of times to loop through the entire dataset.
     '''
-    learn_rate = 0.1
-    epochs = 1000 # number of times to loop through the entire dataset
 
     for epoch in range(epochs):
       for x, y_true in zip(data, all_y_trues):
@@ -126,12 +138,30 @@ all_y_trues = np.array([
   1, # Diana
 ])
 
-# Train our neural network!
-network = OurNeuralNetwork()
-network.train(data, all_y_trues)
+def main():
+  import argparse
 
-# Make some predictions
-emily = np.array([-7, -3]) # 128 pounds, 63 inches
-frank = np.array([20, 2])  # 155 pounds, 68 inches
-print("Emily: %.3f" % network.feedforward(emily)) # 0.951 - F
-print("Frank: %.3f" % network.feedforward(frank)) # 0.039 - M
+  parser = argparse.ArgumentParser(description="Train the from-scratch neural network.")
+  parser.add_argument("--epochs", type=int, default=1000,
+                      help="how many times to loop through the dataset (default: 1000)")
+  parser.add_argument("--learn-rate", type=float, default=0.1,
+                      help="size of each weight update step (default: 0.1)")
+  parser.add_argument("--seed", type=int, default=None,
+                      help="random seed for reproducible starting weights (example: 42)")
+  args = parser.parse_args()
+
+  # Train our neural network!
+  network = OurNeuralNetwork(seed=args.seed)
+  network.train(data, all_y_trues, learn_rate=args.learn_rate, epochs=args.epochs)
+
+  # Report how well the trained network fits the training data
+  print("Training accuracy: %.0f%%" % (accuracy(network, data, all_y_trues) * 100))
+
+  # Make some predictions
+  emily = np.array([-7, -3]) # 128 pounds, 63 inches
+  frank = np.array([20, 2])  # 155 pounds, 68 inches
+  print("Emily: %.3f" % network.feedforward(emily)) # close to 1 - F
+  print("Frank: %.3f" % network.feedforward(frank)) # close to 0 - M
+
+if __name__ == "__main__":
+  main()
